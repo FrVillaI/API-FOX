@@ -1,0 +1,104 @@
+# =========================
+# Build / Compilados
+# =========================
+bin/
+obj/
+out/
+publish/
+
+# =========================
+# Visual Studio
+# =========================
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# Archivos temporales
+# =========================
+*.log
+*.tmp
+*.temp
+*.cache
+
+# =========================
+# Sistema operativo
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Config sensibles
+# =========================
+appsettings.Development.json
+appsettings.Local.json
+*.env
+
+# =========================
+# NuGet
+# =========================
+*.nupkg
+packages/
+.nuget/
+
+# =========================
+# DB / Datos locales
+# =========================
+*.mdf
+*.ldf
+*.db
+*.sqlite
+
+# =========================
+# DBF (IMPORTANTE para tu caso)
+# =========================
+*.dbf
+*.cdx
+*.fpt
+
+# Si tienes una carpeta de datos local:
+DATA/
+DATOS/
+DB/
+DATABASE/
+
+# =========================
+# Logs / outputs
+# =========================
+logs/
+*.txt
+
+# =========================
+# Archivos de publicación
+# =========================
+*.zip
+*.rar
+*.7z
+
+# =========================
+# Archivos generados
+# =========================
+Generated/
+wwwroot/lib/
+
+# =========================
+# Rider / otros IDE
+# =========================
+.idea/
+*.sln.iml
+
+# Node.js
+node_modules/
+
+# WhatsApp Web JS cache
+.wwebjs_cache/
+
+# Opcional (muy recomendado)
+services/whatsapp-service/.wwebjs_cache/
