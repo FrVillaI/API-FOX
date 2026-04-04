@@ -192,65 +192,77 @@ public class FacturaService
 
     #endregion
 
-    public List<FacturaResumenDto> ObtenerRecientes(int cantidad = 20)
+public List<FacturaResumenDto> ObtenerRecientes(int cantidad = 20)
+{
+    Logger.Log("=== OBTENER RECIENTES OPTIMIZADO ===");
+
+    CargarClientes();
+    CargarDocsElectronicos(); // artículos no necesarios aquí
+
+    var topFacturas = new List<FacturaResumenDto>();
+
+    try
     {
-        Logger.Log("=== OBTENER RECIENTES ===");
-        CargarClientes();
-        CargarArticulos();
-        CargarDocsElectronicos();
-
-        var facturas = new List<FacturaResumenDto>();
-
-        try
+        var path = GetPath("facturas.dbf");
+        if (!File.Exists(path))
         {
-            var path = GetPath("facturas.dbf");
-            if (!File.Exists(path))
+            Logger.Log("ERROR: facturas.dbf no encontrado");
+            return topFacturas;
+        }
+
+        var reader = new DbfReader(path);
+
+        while (reader.Read())
+        {
+            var numero = SafeGetString(reader, "NUMFAC");
+            if (string.IsNullOrEmpty(numero)) continue;
+
+            var clienteCod = SafeGetString(reader, "CLIENTE");
+            var total = SafeGetDecimal(reader, "TOTAL");
+            var fecha = SafeGetDate(reader, "EMISION") ?? DateTime.MinValue;
+
+            _clientesCache.TryGetValue(clienteCod, out var cliente);
+            _docsElectronicosCache.TryGetValue(numero, out var docElec);
+
+            var factura = new FacturaResumenDto
             {
-                Logger.Log("ERROR: facturas.dbf no encontrado");
-                return facturas;
+                Numero = numero,
+                Cliente = cliente?.Nombre ?? clienteCod,
+                Fecha = fecha,
+                Total = total,
+                Autorizado = docElec?.Autorizado ?? false,
+                Telefono = cliente?.Telefono ?? ""
+            };
+
+            // 🔥 lógica TOP N
+            if (topFacturas.Count < cantidad)
+            {
+                topFacturas.Add(factura);
             }
-
-            Logger.Log($"Leyendo: {path}");
-            var reader = new DbfReader(path);
-            
-            int leidos = 0;
-            while (reader.Read())
+            else
             {
-                var numero = SafeGetString(reader, "NUMFAC");
-                if (string.IsNullOrEmpty(numero)) continue;
+                // buscar el más antiguo
+                var minFecha = topFacturas.Min(f => f.Fecha);
 
-                var clienteCod = SafeGetString(reader, "CLIENTE");
-                var total = SafeGetDecimal(reader, "TOTAL");
-                var fecha = SafeGetDate(reader, "EMISION") ?? DateTime.MinValue;
-
-                _clientesCache.TryGetValue(clienteCod, out var cliente);
-                _docsElectronicosCache.TryGetValue(numero, out var docElec);
-
-                facturas.Add(new FacturaResumenDto
+                if (factura.Fecha > minFecha)
                 {
-                    Numero = numero,
-                    Cliente = cliente?.Nombre ?? clienteCod,
-                    Fecha = fecha,
-                    Total = total,
-                    Autorizado = docElec?.Autorizado ?? false,
-                    Telefono = cliente?.Telefono ?? ""
-                });
-                leidos++;
+                    var idx = topFacturas.FindIndex(f => f.Fecha == minFecha);
+                    topFacturas[idx] = factura;
+                }
             }
-            reader.Dispose();
-            Logger.Log($"Total leidos: {leidos}, devuelve: {cantidad}");
-        }
-        catch (Exception ex)
-        {
-            Logger.Log($"ERROR ObtenerRecientes: {ex.Message}");
-            Logger.Log($"Stack: {ex.StackTrace}");
         }
 
-        return facturas
-            .OrderByDescending(f => f.Fecha)
-            .Take(cantidad)
-            .ToList();
+        reader.Dispose();
     }
+    catch (Exception ex)
+    {
+        Logger.Log($"ERROR ObtenerRecientes: {ex.Message}");
+    }
+
+    return topFacturas
+        .OrderByDescending(f => f.Fecha)
+        .ToList();
+}
 
     public FacturaDto? ObtenerFactura(string numero)
     {
