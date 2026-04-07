@@ -1,0 +1,30 @@
+{
+  "name": "whatsapp-facturacion-service",
+  "version": "2.0.0",
+  "description": "Servicio WhatsApp para envío de facturas",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop whatsapp-facturacion",
+    "pm2:restart": "pm2 restart whatsapp-facturacion",
+    "pm2:logs": "pm2 logs whatsapp-facturacion",
+    "service:install": "node windows-service.js install",
+    "service:uninstall": "node windows-service.js uninstall"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "whatsapp-web.js": "^1.26.0",
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "pm2": "^5.4.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
