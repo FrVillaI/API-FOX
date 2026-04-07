@@ -122,6 +122,7 @@ public class WhatsAppService
         }
     }
 
+
     // Nuevo: estado detallado para mostrar en un panel o para logging
     public async Task<WhatsAppHealthResponse?> GetHealth()
     {
@@ -155,3 +156,6 @@ public class WhatsAppService
         }
     }
 }
+
+
+

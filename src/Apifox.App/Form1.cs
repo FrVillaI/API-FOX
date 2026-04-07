@@ -24,7 +24,6 @@ public partial class Form1 : Form
         dgvFacturas.Columns.Clear();
         dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Numero", HeaderText = "Número", Width = 100 });
         dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Cliente", HeaderText = "Cliente", Width = 200 });
-        dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Fecha", HeaderText = "Fecha", Width = 100 });
         dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 80 });
         dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Autorizado", HeaderText = "Autorizado", Width = 80 });
         dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Telefono", HeaderText = "Teléfono", Width = 120 });
@@ -63,7 +62,7 @@ public partial class Form1 : Form
 
             foreach (var f in facturas)
             {
-                dgvFacturas.Rows.Add(f.Numero, f.Cliente, f.Fecha.ToString("dd/MM/yyyy"), f.Total.ToString("N2"), f.Autorizado ? "Sí" : "No", f.Telefono);
+                dgvFacturas.Rows.Add(f.Numero, f.Cliente, f.Total.ToString("N2"), f.Autorizado ? "Sí" : "No", f.Telefono);
             }
 
             lblStatus.Text = $"Cargadas {facturas.Count} facturas.";
