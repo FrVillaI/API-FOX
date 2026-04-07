@@ -1,8 +1,8 @@
-namespace Apifox.App;
-
-using Apifox.App.DTOs;
 using Apifox.App.Services;
 using Apifox.App.Utils;
+using Microsoft.Extensions.Configuration;
+
+namespace Apifox.App;
 
 public partial class Form1 : Form
 {
@@ -13,25 +13,37 @@ public partial class Form1 : Form
     public Form1()
     {
         InitializeComponent();
+
         _facturaService = new FacturaService();
         _validacionService = new ValidacionService();
         _whatsAppService = new WhatsAppService();
+
+        CargarConfiguracion();
         ConfigurarDataGrid();
+    }
+
+    private void CargarConfiguracion()
+    {
+        var config = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
+        var baseUrl = config["WhatsApp:BaseUrl"];
+        _whatsAppService.SetBaseUrl(baseUrl);
     }
 
     private void ConfigurarDataGrid()
     {
         dgvFacturas.Columns.Clear();
-        dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Numero", HeaderText = "Número", Width = 100 });
-        dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Cliente", HeaderText = "Cliente", Width = 200 });
-        dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 80 });
-        dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Autorizado", HeaderText = "Autorizado", Width = 80 });
-        dgvFacturas.Columns.Add(new DataGridViewTextBoxColumn { Name = "Telefono", HeaderText = "Teléfono", Width = 120 });
+        dgvFacturas.Columns.Add("Numero", "Número");
+        dgvFacturas.Columns.Add("Cliente", "Cliente");
+        dgvFacturas.Columns.Add("Total", "Total");
+        dgvFacturas.Columns.Add("Autorizado", "Autorizado");
+        dgvFacturas.Columns.Add("Telefono", "Teléfono");
+
         dgvFacturas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        dgvFacturas.MultiSelect = false;
         dgvFacturas.ReadOnly = true;
         dgvFacturas.AllowUserToAddRows = false;
-        dgvFacturas.AllowUserToDeleteRows = false;
     }
 
     private void btnCargar_Click(object sender, EventArgs e)
@@ -40,7 +52,7 @@ public partial class Form1 : Form
 
         if (string.IsNullOrEmpty(ruta))
         {
-            MessageBox.Show("Ingrese la ruta de los archivos DBF.", "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Ingrese ruta DBF.");
             return;
         }
 
@@ -48,160 +60,107 @@ public partial class Form1 : Form
 
         if (!_facturaService.ValidarRuta())
         {
-            MessageBox.Show("La ruta ingresada no existe o no es válida.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Ruta inválida.");
             return;
         }
 
-        lblStatus.Text = "Cargando facturas...";
-        Application.DoEvents();
+        var facturas = _facturaService.ObtenerRecientes(20);
 
-        try
+        dgvFacturas.Rows.Clear();
+
+        foreach (var f in facturas)
         {
-            var facturas = _facturaService.ObtenerRecientes(20);
-            dgvFacturas.Rows.Clear();
-
-            foreach (var f in facturas)
-            {
-                dgvFacturas.Rows.Add(f.Numero, f.Cliente, f.Total.ToString("N2"), f.Autorizado ? "Sí" : "No", f.Telefono);
-            }
-
-            lblStatus.Text = $"Cargadas {facturas.Count} facturas.";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error al cargar facturas: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lblStatus.Text = "Error al cargar.";
-        }
-    }
-
-    private void btnBuscar_Click(object sender, EventArgs e)
-    {
-        var numero = txtBuscar.Text.Trim();
-
-        if (string.IsNullOrEmpty(numero))
-        {
-            MessageBox.Show("Ingrese el número de factura a buscar.", "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            dgvFacturas.Rows.Add(f.Numero, f.Cliente, f.Total, f.Autorizado ? "Sí" : "No", f.Telefono);
         }
 
-        if (dgvFacturas.Rows.Count == 0)
-        {
-            MessageBox.Show("Cargue primero las facturas.", "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        foreach (DataGridViewRow row in dgvFacturas.Rows)
-        {
-            if (row.Cells["Numero"].Value?.ToString() == numero)
-            {
-                row.Selected = true;
-                dgvFacturas.FirstDisplayedScrollingRowIndex = row.Index;
-                lblStatus.Text = $"Factura {numero} encontrada.";
-                return;
-            }
-        }
-
-        MessageBox.Show($"Factura {numero} no encontrada.", "Información", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        lblStatus.Text = $"Cargadas {facturas.Count}";
     }
 
     private async void btnEnviar_Click(object sender, EventArgs e)
     {
         if (dgvFacturas.SelectedRows.Count == 0)
         {
-            MessageBox.Show("Seleccione una factura para enviar.", "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Seleccione una factura.");
             return;
         }
 
-        var numero = dgvFacturas.SelectedRows[0].Cells["Numero"].Value?.ToString();
+        btnEnviar.Enabled = false;
 
-        if (string.IsNullOrEmpty(numero))
-            return;
-
-        var resultado = MessageBox.Show($"¿Enviar factura {numero} por WhatsApp?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-        if (resultado != DialogResult.Yes)
-            return;
-
-        lblStatus.Text = "Obteniendo factura completa...";
-        Application.DoEvents();
-
-        var factura = _facturaService.ObtenerFactura(numero);
-
-        if (factura == null)
+        try
         {
-            MessageBox.Show("No se pudo obtener los detalles de la factura.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lblStatus.Text = "Error.";
-            return;
+            var numero = dgvFacturas.SelectedRows[0].Cells["Numero"].Value?.ToString();
+
+            var factura = _facturaService.ObtenerFactura(numero);
+
+            if (factura == null)
+            {
+                MessageBox.Show("No se pudo obtener la factura.");
+                return;
+            }
+
+            var (valido, msgVal) = _validacionService.ValidarParaEnvio(factura);
+
+            if (!valido)
+            {
+                MessageBox.Show(msgVal);
+                return;
+            }
+
+            lblStatus.Text = "Verificando WhatsApp...";
+            Application.DoEvents();
+
+            var health = await _whatsAppService.GetHealth();
+
+            if (health?.Service == null)
+            {
+                MessageBox.Show("No se pudo conectar al servicio.");
+                return;
+            }
+
+            switch (health.Service.Status)
+            {
+                case "ready":
+                    break;
+
+                case "qr":
+                    MessageBox.Show("Escanea el QR en:\nhttp://localhost:3000/qr-page");
+                    return;
+
+                case "disconnected":
+                    MessageBox.Show("WhatsApp desconectado.");
+                    return;
+
+                case "error":
+                    MessageBox.Show($"Error: {health.LastError}");
+                    return;
+
+                default:
+                    MessageBox.Show("Estado desconocido.");
+                    return;
+            }
+
+            var telefono = PhoneNormalizer.Normalize(factura.Telefono);
+            var mensaje = _validacionService.GenerarMensaje(factura);
+
+            lblStatus.Text = $"Enviando a {telefono}...";
+            Application.DoEvents();
+
+            var (exito, msg) = await _whatsAppService.EnviarMensaje(telefono, mensaje);
+
+            if (exito)
+            {
+                MessageBox.Show("Enviado correctamente.");
+                lblStatus.Text = "Enviado";
+            }
+            else
+            {
+                MessageBox.Show(msg);
+                lblStatus.Text = "Error";
+            }
         }
-
-        var (valido, mensajeValidacion) = _validacionService.ValidarParaEnvio(factura);
-
-        if (!valido)
+        finally
         {
-            MessageBox.Show(mensajeValidacion, "Validación fallida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            lblStatus.Text = "Validación fallida.";
-            return;
+            btnEnviar.Enabled = true;
         }
-
-        var telefono = PhoneNormalizer.Normalize(factura.Telefono);
-        var mensaje = _validacionService.GenerarMensaje(factura);
-
-        lblStatus.Text = $"Enviando a {telefono}...";
-        Application.DoEvents();
-
-        var (exito, mensajeEnvio) = await _whatsAppService.EnviarMensaje(telefono, mensaje);
-
-        if (exito)
-        {
-            MessageBox.Show("Mensaje enviado exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            lblStatus.Text = "Enviado.";
-        }
-        else
-        {
-            MessageBox.Show(mensajeEnvio, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            lblStatus.Text = "Error al enviar.";
-        }
-    }
-
-    private void btnVerDetalle_Click(object sender, EventArgs e)
-    {
-        if (dgvFacturas.SelectedRows.Count == 0)
-        {
-            MessageBox.Show("Seleccione una factura para ver el detalle.", "Advertencia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        var numero = dgvFacturas.SelectedRows[0].Cells["Numero"].Value?.ToString();
-
-        if (string.IsNullOrEmpty(numero))
-            return;
-
-        var factura = _facturaService.ObtenerFactura(numero);
-
-        if (factura == null)
-        {
-            MessageBox.Show("No se pudo obtener los detalles de la factura.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Factura: {factura.Numero}");
-        sb.AppendLine($"Cliente: {factura.ClienteNombre}");
-        sb.AppendLine($"Teléfono: {factura.Telefono}");
-        sb.AppendLine($"Fecha: {factura.Fecha:dd/MM/yyyy}");
-        sb.AppendLine($"Total: ${factura.Total:N2}");
-        sb.AppendLine($"IVA: ${factura.Iva:N2}");
-        sb.AppendLine($"Autorizado: {(factura.Autorizado ? "Sí" : "No")}");
-        sb.AppendLine($"Clave Acceso: {factura.ClaveAcceso}");
-        sb.AppendLine();
-        sb.AppendLine("Detalles:");
-
-        foreach (var d in factura.Detalles)
-        {
-            var subtotal = d.Cantidad * d.Precio;
-            sb.AppendLine($"  - {d.Producto}: x{d.Cantidad} = ${subtotal:N2}");
-        }
-
-        MessageBox.Show(sb.ToString(), $"Detalle Factura {numero}", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 }
